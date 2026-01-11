@@ -57,7 +57,7 @@ contract PredictionMarket {
         require(!disputeManager.isDisputed(marketId), "Market is disputed");
 
         // Get verdict
-        (bool outcome, ) = oracle.getVerdict(marketId);
+        (bool outcome, , ) = oracle.getVerdict(marketId);
         
         m.outcome = outcome;
         m.resolved = true;
@@ -65,5 +65,5 @@ contract PredictionMarket {
         emit MarketResolved(marketId, outcome);
     }
 
-    // TODO: Add buy/sell/claim logic
+
 }

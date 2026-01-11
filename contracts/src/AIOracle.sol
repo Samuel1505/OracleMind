@@ -76,9 +76,9 @@ contract AIOracle {
     }
 
     /// @notice Helper to get verdict details
-    function getVerdict(bytes32 marketId) external view returns (bool, uint256) {
+    function getVerdict(bytes32 marketId) external view returns (bool, uint256, uint256) {
         require(hasVerdict[marketId], "No verdict");
         Verdict memory v = verdicts[marketId];
-        return (v.outcome, v.confidence);
+        return (v.outcome, v.confidence, v.timestamp);
     }
 }

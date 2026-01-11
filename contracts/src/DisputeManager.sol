@@ -28,16 +28,16 @@ contract DisputeManager {
 
     /// @notice Raise a dispute against a verdict
     /// @dev Requires bond (TODO)
-    function disputeVerdict(bytes32 marketId) external payable { // payable for bond
-        // 1. Check if verdict exists
-        (bool exists,) = oracle.getVerdict(marketId); 
-        // Note: getVerdict throws if doesn't exist, we might want a safer check or try/catch effectively
-        // For MVP assuming it exists if calling this.
+    function disputeVerdict(bytes32 marketId) external payable {
+        // 1. Check if verdict exists and get details
+        (,, uint256 vTimestamp) = oracle.getVerdict(marketId); 
         
-        // 2. Check if within dispute window (would need verdict timestamp from oracle)
-        // Assuming open for now.
+        // 2. Check if within dispute window
+        require(block.timestamp <= vTimestamp + disputeWindow, "Dispute window closed");
 
         // 3. Create dispute
+        require(disputes[marketId].status == DisputeStatus.None, "Already disputed");
+        
         disputes[marketId] = Dispute({
             challenger: msg.sender,
             timestamp: block.timestamp,
