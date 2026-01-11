@@ -1,0 +1,30 @@
+# General
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Python (AI Layer)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.pytest_cache/
+
+# Node.js (Oracle & SDK)
+node_modules/
+dist/
+coverage/
+.npm/
+
+# Foundry / Solidity (Contracts)
+cache/
+out/
+broadcast/
+lib/
+
+# Secrets
+.env
+keys.json
+secrets.yaml

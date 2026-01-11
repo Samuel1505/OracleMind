@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIVerdict",
+  "type": "object",
+  "properties": {
+    "marketId": {
+      "type": "string",
+      "description": "Unique identifier for the market (bytes32 hex string)"
+    },
+    "outcome": {
+      "type": "boolean",
+      "description": "The determined result of the market question"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence score from 0.0 to 1.0"
+    },
+    "timestamp": {
+      "type": "integer",
+      "description": "Unix timestamp of the analysis"
+    },
+    "sources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of URLs or source identifiers used"
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Human-readable explanation of the verdict"
+    }
+  },
+  "required": ["marketId", "outcome", "confidence", "timestamp", "sources"]
+}
