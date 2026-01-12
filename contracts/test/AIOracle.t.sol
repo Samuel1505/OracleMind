@@ -37,9 +37,10 @@ contract AIOracleTest is Test {
         oracle.submitVerdict(marketId, outcome, confidence, sources, signature);
 
         // Verify state
-        (bool storedOutcome, uint256 storedConfidence) = oracle.getVerdict(marketId);
+        (bool storedOutcome, uint256 storedConfidence, uint256 storedTimestamp) = oracle.getVerdict(marketId);
         assertTrue(storedOutcome == outcome);
         assertEq(storedConfidence, confidence);
+        assertGt(storedTimestamp, 0);
     }
 
     function test_RevertIfSignatureInvalid() public {
