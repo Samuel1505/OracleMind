@@ -11,9 +11,12 @@ contract DeployScript is Script {
 
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address signer = vm.envAddress("ORACLE_SIGNER");
-
+        
         vm.startBroadcast(deployerPrivateKey);
+        
+        // Derive signer address from the private key (same as deployer)
+        address signer = vm.addr(deployerPrivateKey);
+        console.log("Using signer address:", signer);
 
         // 1. Deploy AIOracle with the signer address
         AIOracle oracle = new AIOracle(signer);

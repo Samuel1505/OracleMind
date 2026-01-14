@@ -1,5 +1,5 @@
-import { ethers } from "ethers";
-import * as fs from "fs";
+import { createWalletClient, createPublicClient, http, parseAbi, keccak256, encodePacked, toHex, Hex } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
 
 // Configuration interface
 export interface OracleConfig {
@@ -17,19 +17,32 @@ interface Verdict {
 }
 
 export class OracleSubmitter {
-    private provider: ethers.JsonRpcProvider;
-    private wallet: ethers.Wallet;
-    private contract: ethers.Contract;
+    private account: ReturnType<typeof privateKeyToAccount>;
+    private walletClient: ReturnType<typeof createWalletClient>;
+    private publicClient: ReturnType<typeof createPublicClient>;
+    private oracleAddress: Hex;
 
     constructor(config: OracleConfig) {
-        this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
-        this.wallet = new ethers.Wallet(config.privateKey, this.provider);
+        // Ensure private key has 0x prefix (viem requirement)
+        const privateKey = config.privateKey.startsWith('0x') 
+            ? config.privateKey 
+            : `0x${config.privateKey}`;
         
-        const abi = [
-            "function submitVerdict(bytes32 marketId, bool outcome, uint256 confidence, string[] sources, bytes signature)"
-        ];
+        // Create account from private key
+        this.account = privateKeyToAccount(privateKey as Hex);
         
-        this.contract = new ethers.Contract(config.oracleAddress, abi, this.wallet);
+        // Create wallet client for writing (using custom RPC, not hardcoded chain)
+        this.walletClient = createWalletClient({
+            account: this.account,
+            transport: http(config.rpcUrl)
+        });
+
+        // Create public client for reading
+        this.publicClient = createPublicClient({
+            transport: http(config.rpcUrl)
+        });
+
+        this.oracleAddress = config.oracleAddress as Hex;
     }
 
     async submitVerdict(marketId: string, outcome: boolean, confidence: number, sources: string[]) {
@@ -37,32 +50,40 @@ export class OracleSubmitter {
             console.log(`Submitting verdict for ${marketId}: Outcome=${outcome}, Confidence=${confidence}`);
 
             // 1. Create the hash to match Solidity's keccak256(abi.encodePacked(...))
-            // Solidity: keccak256(abi.encodePacked(marketId, outcome, confidence))
-            const messageHash = ethers.solidityPackedKeccak256(
-                ["bytes32", "bool", "uint256"],
-                [marketId, outcome, confidence] // ensure marketId is bytes32 string
+            const messageHash = keccak256(
+                encodePacked(
+                    ['bytes32', 'bool', 'uint256'],
+                    [marketId as Hex, outcome, BigInt(confidence)]
+                )
             );
 
-            // 2. Sign the binary hash
-            // This adds the "\x19Ethereum Signed Message:\n32" prefix
-            // matching MessageHashUtils.toEthSignedMessageHash(dataHash)
-            const signature = await this.wallet.signMessage(ethers.getBytes(messageHash));
+            // 2. Sign the message hash
+            // viem's signMessage automatically adds the "\x19Ethereum Signed Message:\n32" prefix
+            const signature = await this.walletClient.signMessage({
+                message: { raw: messageHash }
+            });
             
             console.log("Generated Signature:", signature);
 
             // 3. Submit to contract
-            const tx = await this.contract.submitVerdict(
-                marketId,
-                outcome,
-                confidence,
-                sources,
-                signature
-            );
+            const abi = parseAbi([
+                'function submitVerdict(bytes32 marketId, bool outcome, uint256 confidence, string[] sources, bytes signature)'
+            ]);
+
+            const hash = await this.walletClient.writeContract({
+                address: this.oracleAddress,
+                abi,
+                functionName: 'submitVerdict',
+                args: [marketId as Hex, outcome, BigInt(confidence), sources, signature]
+            });
             
-            console.log(`Verdict submitted! Tx Hash: ${tx.hash}`);
-            await tx.wait();
+            console.log(`Verdict submitted! Tx Hash: ${hash}`);
+            
+            // Wait for transaction confirmation
+            const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
             console.log("Transaction confirmed.");
-            return tx;
+            
+            return { hash, ...receipt };
             
         } catch (error) {
             console.error("Error submitting verdict:", error);

@@ -19,7 +19,7 @@ aggregator = ConsensusAggregator()
 class ResolutionRequest(BaseModel):
     marketId: str
     question: str
-    sources: List[str]
+    sources: List[str] = []  # Optional - agents will find their own if empty
 
 @app.get("/")
 def health_check():
@@ -29,8 +29,7 @@ def health_check():
 async def resolve_market(request: ResolutionRequest):
     logger.info(f"Received resolution request for {request.marketId}")
     
-    if not request.sources:
-        raise HTTPException(status_code=400, detail="No sources provided")
+    # Sources are now optional - agents will use NewsAPI and web search if empty
 
     # Run Aggregation (running in thread pool to not block event loop)
     verdict = await asyncio.to_thread(

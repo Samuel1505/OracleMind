@@ -1,8 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import { OracleSubmitter, OracleConfig } from './submitter'; // Assuming valid export
+import { OracleSubmitter, OracleConfig } from './submitter';
 import dotenv from 'dotenv';
-import { ethers } from 'ethers';
 
 dotenv.config();
 

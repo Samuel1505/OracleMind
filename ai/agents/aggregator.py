@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import time
 from typing import List, Dict, Any
 from ai.agents.event_agent import EventAgent
 
@@ -7,11 +8,11 @@ logger = logging.getLogger("Aggregator")
 
 class ConsensusAggregator:
     def __init__(self, models: List[str] = None):
-        # Default to 3 distinct free models if none provided
+        # Use available OpenRouter models (not all free models work)
         self.models = models or [
-            "google/gemma-2-9b-it:free",
-            "meta-llama/llama-3.1-8b-instruct:free",
-            "mistralai/mistral-7b-instruct:free"
+            "mistralai/devstral-2512:free",
+            "arcee-ai/trinity-mini:free",
+            "nvidia/nemotron-nano-9b-v2:free"
         ]
         self.agents = [EventAgent(model=m) for m in self.models]
 
@@ -41,26 +42,45 @@ class ConsensusAggregator:
                 "marketId": "error",
                 "outcome": False,
                 "confidence": 0.0,
-                "reasoning": "All agents failed."
+                "reasoning": "All agents failed.",
+                "timestamp": int(time.time()),
+                "sources": sources
             }
 
-        # Compute Consensus (Majority Vote)
-        yes_votes = len([r for r in results if r["outcome"] is True])
-        no_votes = len([r for r in results if r["outcome"] is False])
+        # Filter out error responses (those with marketId == "error")
+        valid_results = [r for r in results if r.get("marketId") != "error"]
+        
+        if not valid_results:
+            return {
+                "marketId": "error",
+                "outcome": False,
+                "confidence": 0.0,
+                "reasoning": "All agents returned errors.",
+                "timestamp": int(time.time()),
+                "sources": sources
+            }
+
+        # Compute Consensus (Majority Vote) using only valid results
+        yes_votes = len([r for r in valid_results if r["outcome"] is True])
+        no_votes = len([r for r in valid_results if r["outcome"] is False])
         
         final_outcome = yes_votes > no_votes
         
         # Filter for winning side to compute average confidence
-        winning_verdicts = [r for r in results if r["outcome"] == final_outcome]
+        winning_verdicts = [r for r in valid_results if r["outcome"] == final_outcome]
         if not winning_verdicts:
              avg_confidence = 0.0
         else:
              avg_confidence = sum(r["confidence"] for r in winning_verdicts) / len(winning_verdicts)
 
         # Consolidate reasoning
-        reasoning_summary = "Consensus Reached:\n"
+        reasoning_summary = f"Consensus Reached (Valid: {len(valid_results)}/{len(results)}):\n"
         for i, r in enumerate(results):
-            reasoning_summary += f"- [{self.models[i]}]: {r['outcome']} ({r['confidence']:.2f}) -> {r['reasoning'][:100]}...\n"
+            model_name = self.models[i] if i < len(self.models) else "unknown"
+            if r.get("marketId") == "error":
+                reasoning_summary += f"- [{model_name}]: ERROR - {r.get('reasoning', 'Unknown error')}\n"
+            else:
+                reasoning_summary += f"- [{model_name}]: {r['outcome']} ({r['confidence']:.2f}) -> {r['reasoning'][:100]}...\n"
 
         logger.info(f"Consensus: {final_outcome} (Yes:{yes_votes} No:{no_votes}) Confidence: {avg_confidence}")
 
@@ -68,7 +88,7 @@ class ConsensusAggregator:
             "marketId": "consensus",
             "outcome": final_outcome,
             "confidence": avg_confidence,
-            "timestamp": results[0]["timestamp"],
+            "timestamp": valid_results[0].get("timestamp", int(time.time())),
             "sources": sources,
             "reasoning": reasoning_summary
         }

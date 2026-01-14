@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
@@ -18,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("EventAgent")
 
 from ai.services.scraper import scrape_text
+from ai.services.news import NewsService
 
 class EventAgent:
     def __init__(self, model: str = "google/gemma-2-9b-it:free"):
@@ -34,18 +36,28 @@ class EventAgent:
             temperature=0.1,
         )
 
-        # 2. Define Tools
+        # 2. Initialize services
         self.search_tool = DuckDuckGoSearchRun()
+        self.news_service = NewsService()
         
         def scrape_tool_func(url: str) -> str:
             """Scrapes a specific URL for content."""
             return scrape_text(url, max_chars=3000)
+        
+        def news_tool_func(query: str) -> str:
+            """Fetches recent news articles about a topic."""
+            return self.news_service.search_news(query, max_results=3)
 
         self.tools = [
             Tool(
                 name="WebSearch",
                 func=self.search_tool.invoke,
-                description="Useful for finding news and facts about the event. Input should be a search query."
+                description="Useful for finding general information about the event. Input should be a search query."
+            ),
+            Tool(
+                name="NewsAPI",
+                func=news_tool_func,
+                description="Useful for finding recent news articles from major news sources. Input should be a search query like 'Bitcoin ETF SEC approval'."
             ),
             Tool(
                 name="ScrapeURL",
@@ -119,7 +131,8 @@ Do not wrap the JSON in markdown code blocks. Just valid JSON."""
                 "marketId": "error",
                 "outcome": False,
                 "confidence": 0.0,
-                "reasoning": f"Agent Error: {str(e)}"
+                "reasoning": f"Agent Error: {str(e)}",
+                "timestamp": int(time.time())
             }
 
 if __name__ == "__main__":

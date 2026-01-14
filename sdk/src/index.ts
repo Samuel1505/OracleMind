@@ -41,9 +41,9 @@ export class OracleMindSDK {
         
         // For Hackathon MVP, we might pass question/sources explicitly 
         // or let the Oracle fetch them from chain.
-        // Let's assume we pass them for now to test the flow easily.
-        const question = "Did the Bitcoin ETF get approved by the SEC?"; 
-        const sources = ["https://www.sec.gov/news/press-release/2024-3"];
+        // Let's let the AI agents find their own sources using NewsAPI and web search
+        const question = "Will Nigeria win against Morocco in today's match?"; 
+        const sources: string[] = []; // Empty - let AI agents use NewsAPI and web search
 
         try {
             console.log(`SDK: Requesting resolution for ${marketId}...`);
